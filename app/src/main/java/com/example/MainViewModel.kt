@@ -98,7 +98,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _wizardSubcategory = MutableStateFlow("")
     val wizardSubcategory: StateFlow<String> = _wizardSubcategory
 
-    private val _wizardStep = MutableStateFlow(1) // Start at step 1 (Basic Setup)
+    private val _wizardStep = MutableStateFlow(1) // 1 category, 2 service type, 3 subcategory, 4+ dynamic workflow
     val wizardStep: StateFlow<Int> = _wizardStep
 
     // Temporary wizard inputs
@@ -344,15 +344,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Dynamic Multi-Step Wizard Configuration
     val stepsForSelectedCategory: StateFlow<List<String>> = combine(
         _wizardCategory, _wizardSubcategory
-    ) { category, subcategory ->
-        when (category) {
+    ) { category, _ ->
+        val generatedSteps = when (category) {
             "accommodation" -> listOf("Basics", "Location", "Room Config", "Pricing", "Amenities", "Photos", "Availability", "Policies", "SEO Summary")
             "food" -> listOf("Basics", "Food Type & Cuisine", "Menu List", "Meal Plans Selection", "Subscription Setup", "Delivery Area", "Promo Media", "Policy Rules")
             "laundry" -> listOf("Basics", "Service Care Type", "Pricing Matrix", "Pickup Windows", "Delivery Area", "Turnaround Duration", "Coverage", "Visual Media", "House Rules")
             "study" -> listOf("Basics", "Space Category", "Seating Matrix", "Membership Plans", "Open Timings", "Premium Amenities", "Media Uploads", "Policies")
             "books" -> listOf("Basics", "Condition Setup", "Pricing Model", "Delivery Method", "High-res Cover", "Exchange Policies")
-            else -> listOf("1. Category Selection", "2. Config Setup", "3. Review & Launch")
+            else -> listOf("Basics", "Config Setup", "Review & Launch")
         }
+        listOf("Select Category", "Select Service Type", "Select Subcategory") + generatedSteps
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setupWizardIntro(category: String, serviceType: String, subcat: String) {
@@ -360,6 +361,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _wizardServiceType.value = serviceType
         _wizardSubcategory.value = subcat
         _wizardStep.value = 1 // reset to first custom page
+    }
+
+    fun updateWizardTaxonomy(category: String, serviceType: String, subcat: String) {
+        _wizardCategory.value = category
+        _wizardServiceType.value = serviceType
+        _wizardSubcategory.value = subcat
     }
 
     fun nextWizardStep() {
