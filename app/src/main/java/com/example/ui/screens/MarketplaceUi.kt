@@ -45,7 +45,8 @@ fun MainMarketplaceScreen(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
-    var activeTab by remember { mutableStateFlowOf("explore") } // explore, dashboard, wizard, db_tracker
+    var activeTab by remember { mutableStateOf("explore") } // explore, dashboard, wizard, db_tracker
+    var isHostMode by remember { mutableStateOf(false) }
 
     // Observe DB States
     val listings by viewModel.allListings.collectAsState(initial = emptyList())
@@ -159,7 +160,14 @@ fun MainMarketplaceScreen(
                 label = "MainTabsTransitions"
             ) { state ->
                 when (state) {
-                    "explore" -> StudentExploreScreen(viewModel)
+                    "explore" -> StudentExploreScreen(
+                        viewModel = viewModel,
+                        isHostMode = isHostMode,
+                        onBecomeHost = {
+                            isHostMode = true
+                            activeTab = "dashboard"
+                        }
+                    )
                     "dashboard" -> VendorSaaSControlPanel(viewModel)
                     "wizard" -> DynamicCategoryWizard(viewModel)
                     "db_tracker" -> DbTablesInspectorPage(viewModel)
@@ -186,7 +194,11 @@ fun MainMarketplaceScreen(
 // ------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentExploreScreen(viewModel: MainViewModel) {
+fun StudentExploreScreen(
+    viewModel: MainViewModel,
+    isHostMode: Boolean,
+    onBecomeHost: () -> Unit
+) {
     val listings by viewModel.allListings.collectAsState(initial = emptyList())
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -241,7 +253,10 @@ fun StudentExploreScreen(viewModel: MainViewModel) {
     ) {
         // Premium Core Header - Real Customer Profile Instead of A@
         item {
-            HeaderBarSection()
+            HeaderBarSection(
+                isHostMode = isHostMode,
+                onBecomeHost = onBecomeHost
+            )
         }
 
         // Smart Search Box
@@ -271,10 +286,11 @@ fun StudentExploreScreen(viewModel: MainViewModel) {
                         }
                     },
                     shape = RoundedCornerShape(24.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                    colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = PinkPrimary,
                         unfocusedBorderColor = SlateLight,
-                        containerColor = SlateLight
+                        focusedContainerColor = SlateLight,
+                        unfocusedContainerColor = SlateLight
                     ),
                     singleLine = true
                 )
@@ -346,12 +362,12 @@ fun StudentExploreScreen(viewModel: MainViewModel) {
         // Horizontal Marketplace Category Toggles
         item {
             val categories = listOf(
-                "all" to "All Stops",
-                "accommodation" to "Hostels & PGs",
-                "food" to "Meal Plans",
-                "laundry" to "Garment Care",
-                "study" to "Silent Libraries",
-                "books" to "Curated Books"
+                Triple("all", "All", Icons.Default.AutoAwesome),
+                Triple("accommodation", "Hostels & PGs", Icons.Default.Apartment),
+                Triple("food", "Tiffin & Mess", Icons.Default.Restaurant),
+                Triple("laundry", "Laundry & Garment Care", Icons.Default.LocalLaundryService),
+                Triple("study", "Library & Study", Icons.Default.LocalLibrary),
+                Triple("books", "Books", Icons.Default.MenuBook)
             )
             LazyRow(
                 modifier = Modifier
@@ -360,7 +376,7 @@ fun StudentExploreScreen(viewModel: MainViewModel) {
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(categories) { (code, label) ->
+                items(categories) { (code, label, catIcon) ->
                     val isSelected = selectedCategory == code
                     Card(
                         modifier = Modifier
@@ -375,14 +391,6 @@ fun StudentExploreScreen(viewModel: MainViewModel) {
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val catIcon = when(code) {
-                                "accommodation" -> Icons.Default.Home
-                                "food" -> Icons.Default.Restaurant
-                                "laundry" -> Icons.Default.LocalLaundryService
-                                "study" -> Icons.Default.MenuBook
-                                "books" -> Icons.Default.Bookmark
-                                else -> Icons.Default.Storefront
-                            }
                             Icon(
                                 catIcon,
                                 label,
@@ -452,7 +460,10 @@ fun StudentExploreScreen(viewModel: MainViewModel) {
 }
 
 @Composable
-fun HeaderBarSection() {
+fun HeaderBarSection(
+    isHostMode: Boolean,
+    onBecomeHost: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -460,13 +471,33 @@ fun HeaderBarSection() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1.0f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Campus, "Campus", tint = PinkPrimary, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Campus Hub", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = SlateDark)
+                Text("StayHub", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = SlateDark)
             }
-            Text("Pune University Sector • Live Commerce", fontSize = 12.sp, color = SlateMedium, fontWeight = FontWeight.Bold)
+            Text("Premium student marketplace • Pune", fontSize = 12.sp, color = SlateMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onBecomeHost,
+                enabled = !isHostMode,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isHostMode) MintGreen else SlateDark,
+                    disabledContainerColor = MintGreen,
+                    disabledContentColor = PureWhite
+                ),
+                shape = RoundedCornerShape(22.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    if (isHostMode) Icons.Default.VerifiedUser else Icons.Default.Storefront,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (isHostMode) "Host dashboard unlocked" else "Become a host", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
         }
 
         // Premium Real User Avatar Illustration Instead of generic A@
@@ -737,6 +768,7 @@ fun MarketplaceListingCard(listing: Listing, viewModel: MainViewModel) {
 @Composable
 fun DynamicCategoryWizard(viewModel: MainViewModel) {
     val category by viewModel.wizardCategory.collectAsState()
+    val serviceType by viewModel.wizardServiceType.collectAsState()
     val subcat by viewModel.wizardSubcategory.collectAsState()
     val step by viewModel.wizardStep.collectAsState()
     val stepsList by viewModel.stepsForSelectedCategory.collectAsState()
@@ -767,8 +799,8 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
         contentPadding = PaddingValues(bottom = 80.dp)
     ) {
         item {
-            Text("Create Category Listing", fontWeight = FontWeight.ExtraBold, fontSize = 26.sp, color = SlateDark)
-            Text("Tailored multi-service wizard configurations", fontSize = 13.sp, color = SlateMedium)
+            Text("Create a Listing", fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, color = SlateDark)
+            Text("Category → Service Type → Subcategory, then StayHub builds the right workflow.", fontSize = 13.sp, color = SlateMedium)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -781,7 +813,7 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        "Category Flow: ${category.uppercase()} • Step $step of ${stepsList.size}",
+                        "Dynamic workflow: ${category.uppercase()} • ${serviceType.ifBlank { "service pending" }} • Step $step of ${stepsList.size}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = PinkPrimary
@@ -812,15 +844,15 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
         if (step == 1) {
             item {
                 Column {
-                    Text("Select Marketplace Category", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = SlateDark)
+                    Text("1  Select Category", fontWeight = FontWeight.Black, fontSize = 18.sp, color = SlateDark)
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     val pCategories = listOf(
                         Triple("accommodation", "Accommodation", Icons.Default.Home),
                         Triple("food", "Food & Tiffins", Icons.Default.Restaurant),
-                        Triple("laundry", "Laundry care", Icons.Default.LocalLaundryService),
-                        Triple("study", "Libraries", Icons.Default.MenuBook),
-                        Triple("books", "Curated Books", Icons.Default.Bookmark)
+                        Triple("laundry", "Laundry & Garment Care", Icons.Default.LocalLaundryService),
+                        Triple("study", "Library / Study", Icons.Default.LocalLibrary),
+                        Triple("books", "Books", Icons.Default.MenuBook)
                     )
 
                     pCategories.forEach { (code, name, icon) ->
@@ -836,8 +868,8 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
                                         code,
                                         "",
                                         when (code) {
-                                            "accommodation" -> "boys_hostel"
-                                            "food" -> "tiffin_daily"
+                                            "accommodation" -> "pg"
+                                            "food" -> "daily_tiffin"
                                             "laundry" -> "wash_iron"
                                             "study" -> "library"
                                             else -> "used_books"
@@ -854,15 +886,41 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
-                    Text("Subcategory selection", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = SlateDark)
+                    Text("2  Select Service Type", fontWeight = FontWeight.Black, fontSize = 18.sp, color = SlateDark)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val serviceTypes = when (category) {
+                        "accommodation" -> listOf("pg" to "PG", "boys_hostel" to "Boys Hostel", "girls_hostel" to "Girls Hostel", "coed_hostel" to "Co-ed Hostel", "rooms" to "Rooms", "apartments" to "Apartments")
+                        "food" -> listOf("tiffin" to "Tiffin", "home_visit_food" to "Home Visit Food", "canteen" to "Canteen", "mess" to "Mess")
+                        "laundry" -> listOf("iron_only" to "Iron Only", "wash_only" to "Wash Only", "wash_iron" to "Wash + Iron", "dry_cleaning" to "Dry Cleaning", "steam_press" to "Steam Press", "bulk_laundry" to "Bulk Laundry")
+                        "study" -> listOf("library" to "Library", "reading_room" to "Reading Room", "study_room" to "Study Room", "exam_hall" to "Exam Hall")
+                        else -> listOf("new_books" to "New Books", "used_books" to "Used Books", "rental_books" to "Rental Books")
+                    }
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(serviceTypes) { (scode, sname) ->
+                            val active = serviceType == scode || (serviceType.isBlank() && subcat == scode)
+                            FilterChip(
+                                selected = active,
+                                onClick = { viewModel.setupWizardIntro(category, scode, scode) },
+                                label = { Text(sname) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PinkPrimary,
+                                    selectedLabelColor = PureWhite
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Text("3  Select Subcategory", fontWeight = FontWeight.Black, fontSize = 18.sp, color = SlateDark)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     val subcatList = when (category) {
-                        "accommodation" -> listOf("boys_hostel" to "Boys Hostel", "girls_hostel" to "Girls Hostel", "coed_hostel" to "Co-Ed Hostel", "pg" to "PG Studio Room")
-                        "food" -> listOf("tiffin_daily" to "Daily Tiffin", "homestyle" to "Home Visit Food Maker", "canteen" to "Canteen Service")
-                        "laundry" -> listOf("only_iron" to "Steam Ironing Only", "wash_iron" to "Wash + Fold + Iron", "dry_clean" to "Dry Cleaning")
-                        "study" -> listOf("library" to "Student Library Room", "reading" to "24/7 Reading Space")
-                        else -> listOf("new_books" to "Brand New Books", "used_books" to "Used Senior Books", "rental" to "Rental Books")
+                        "accommodation" -> listOf("single_room" to "Single room", "double_sharing" to "Double sharing", "triple_sharing" to "Triple sharing", "dormitory" to "Dormitory", "private_room" to "Private room")
+                        "food" -> listOf("daily_tiffin" to "Daily Tiffin", "home_visit_food" to "Home Visit Food")
+                        "laundry" -> listOf("delicate_care" to "Delicate Care", "normal_load" to "Normal Load", "bulky_items" to "Bulky Items", "express" to "Express Service")
+                        "study" -> listOf("silent_zone" to "Silent Zone", "personal_cabin" to "Personal Cabin", "group_study" to "Group Study Room")
+                        else -> listOf("new_books" to "New Books", "used_books" to "Used Books", "rental_books" to "Rental Books")
                     }
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -870,7 +928,7 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
                             val isSubSelected = subcat == scode
                             FilterChip(
                                 selected = isSubSelected,
-                                onClick = { viewModel.setupWizardIntro(category, "", scode) },
+                                onClick = { viewModel.setupWizardIntro(category, serviceType.ifBlank { scode }, scode) },
                                 label = { Text(sname) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = PinkPrimary,
@@ -1079,7 +1137,7 @@ fun DynamicCategoryWizard(viewModel: MainViewModel) {
 // ------------------------------------------------------------------------
 @Composable
 fun VendorSaaSControlPanel(viewModel: MainViewModel) {
-    var hostTab by remember { mutableStateFlowOf("overview") } // overview, pipeline, conversations, reviews, coupons
+    var hostTab by remember { mutableStateOf("overview") } // overview, pipeline, conversations, reviews, coupons
     val notifications by viewModel.notifications.collectAsState(initial = emptyList())
 
     Column(
@@ -1203,12 +1261,22 @@ fun DashboardAnalyticsOverview(viewModel: MainViewModel) {
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     KpiStatCard("Total Revenue", "₹34,500", "▲ +18% on week", Modifier.weight(1.0f), colorGold = true)
-                    KpiStatCard("Listings", listings.size.toString(), "Active & verified", Modifier.weight(1.0f), colorGold = false)
+                    KpiStatCard("Active Listings", listings.count { it.verifiedBadge }.toString(), "${listings.size} total listings", Modifier.weight(1.0f), colorGold = false)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     KpiStatCard("Bookings confirmed", bookings.size.toString(), "₹12,500 received", Modifier.weight(1.0f), colorGold = false)
                     KpiStatCard("Pipeline Leads", leads.size.toString(), "CRM pipeline status", Modifier.weight(1.0f), colorGold = false)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KpiStatCard("Occupancy Rate", "82%", "Live bed count synced", Modifier.weight(1.0f), colorGold = false)
+                    KpiStatCard("Conversion Rate", "24%", "Views → chats → bookings", Modifier.weight(1.0f), colorGold = false)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KpiStatCard("Views", "12.8k", "Search + map discovery", Modifier.weight(1.0f), colorGold = false)
+                    KpiStatCard("Rating", "4.8★", "Reviews & sentiment", Modifier.weight(1.0f), colorGold = false)
                 }
             }
         }
@@ -1567,6 +1635,7 @@ fun DashboardLeadsPipeline(viewModel: MainViewModel) {
 @Composable
 fun DashboardWhatsAppInbox(viewModel: MainViewModel) {
     val conversations by viewModel.conversations.collectAsState(initial = emptyList())
+    val activeConvId by viewModel.activeConvId.collectAsState()
     val activeMessages by viewModel.activeMessages.collectAsState()
     var inputMessage by remember { mutableStateOf("") }
 
@@ -1584,7 +1653,7 @@ fun DashboardWhatsAppInbox(viewModel: MainViewModel) {
                 Text("Interactions", fontWeight = FontWeight.Bold, modifier = Modifier.padding(8.dp))
             }
             items(conversations) { cv ->
-                val isActive = cv.idString == "conv_rohan"
+                val isActive = cv.idString == activeConvId
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
