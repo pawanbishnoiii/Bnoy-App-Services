@@ -1,0 +1,6 @@
+{
+  "name": "StayHub",
+  "description": "Premium category-aware student marketplace platform and a complete vendor operating system with lead management, workflows, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
